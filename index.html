@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JAGUAR // Manage Production Steps</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
+    
+    :root {
+      --bg-color: #f1f5f9;
+      --card-bg: #ffffff;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
+      --text-main: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+    }
+
+    body {
+      font-family: 'Sarabun', sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 900px;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 24px;
+      color: var(--primary);
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: 10px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      padding: 25px;
+      margin-bottom: 25px;
+    }
+
+    .card h2 {
+      margin-top: 0;
+      font-size: 18px;
+      color: var(--text-main);
+      margin-bottom: 20px;
+      border-left: 4px solid var(--primary);
+      padding-left: 10px;
+    }
+
+    /* Form Styles */
+    .form-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr 2fr;
+      gap: 15px;
+      align-items: end;
+    }
+
+    @media (max-width: 768px) {
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .form-group label {
+      font-weight: 600;
+      font-size: 14px;
+      margin-bottom: 6px;
+      color: var(--text-main);
+    }
+
+    .form-group input {
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 15px;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 15px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background 0.2s;
+      font-family: inherit;
+    }
+
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    
+    .btn-danger { background: var(--danger); color: white; padding: 6px 12px; font-size: 13px; }
+    .btn-danger:hover { background: var(--danger-hover); }
+
+    /* Table Styles */
+    .table-responsive {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th, td {
+      padding: 12px 15px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      background-color: #f8fafc;
+      font-weight: 700;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    tr:hover {
+      background-color: #f1f5f9;
+    }
+
+    .text-center { text-align: center; }
+    
+    .loading {
+      text-align: center;
+      padding: 30px;
+      color: var(--primary);
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <h1><i class="fa-solid fa-layer-group"></i> จัดการฐานข้อมูลขั้นตอนการผลิต (Production Steps)</h1>
+    <a href="https://paiboon-creater.github.io/Data_Information_Jaguar_productions/" class="btn" style="background: white; border: 1px solid var(--border); color: var(--text-main);">
+      <i class="fa-solid fa-house"></i> กลับหน้าแรก
+    </a>
+  </div>
+
+  <!-- ฟอร์มเพิ่มข้อมูล -->
+  <div class="card">
+    <h2><i class="fa-solid fa-plus-circle"></i> เพิ่มขั้นตอนการผลิตใหม่</h2>
+    <form id="stepForm" onsubmit="addStep(event)">
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="step_name">ชื่อขั้นตอนการผลิต (step_name)</label>
+          <input type="text" id="step_name" placeholder="เช่น รีดใบ, ขัดเงา, แพ็คกิ้ง..." required>
+        </div>
+        <div class="form-group">
+          <label for="level">ลำดับการทำงาน (level)</label>
+          <input type="number" id="level" placeholder="เช่น 1, 2, 17..." required>
+        </div>
+        <div class="form-group">
+          <label for="foreman">ชื่อหัวหน้างาน (foreman)</label>
+          <input type="text" id="foreman" placeholder="เช่น วิไล, คุณแก้ว, MT..." required>
+        </div>
+      </div>
+      <div style="margin-top: 20px; text-align: right;">
+        <button type="submit" class="btn btn-primary" id="submitBtn">
+          <i class="fa-solid fa-save"></i> บันทึกข้อมูล
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- ตารางแสดงข้อมูล -->
+  <div class="card">
+    <h2><i class="fa-solid fa-list"></i> รายการขั้นตอนการผลิตทั้งหมด (เรียงตาม Level)</h2>
+    <div class="table-responsive">
+      <table>
+        <thead>
+          <tr>
+            <th width="10%">ID</th>
+            <th width="35%">ชื่อขั้นตอน (Step Name)</th>
+            <th width="15%" class="text-center">ลำดับ (Level)</th>
+            <th width="25%">หัวหน้างาน (Foreman)</th>
+            <th width="15%" class="text-center">จัดการ</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr>
+            <td colspan="5" class="loading"><i class="fa-solid fa-spinner fa-spin"></i> กำลังโหลดข้อมูล...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ตั้งค่าการเชื่อมต่อ Supabase
+  const SUPABASE_URL = "https://siiiifesdjuunwmwozfb.supabase.co/rest/v1";
+  const SUPABASE_KEY = "sb_publishable_ohToE8Z_Fzo87uBtzdPDIg_cqHCi3HT";
+  const headers = { 
+    "apikey": SUPABASE_KEY, 
+    "Authorization": "Bearer " + SUPABASE_KEY, 
+    "Content-Type": "application/json",
+    "Prefer": "return=representation"
+  };
+
+  // โหลดข้อมูลเมื่อเปิดหน้าเว็บ
+  window.onload = function() {
+    loadSteps();
+  };
+
+  // ฟังก์ชันดึงข้อมูลมาแสดงในตาราง
+  async function loadSteps() {
+    const tbody = document.getElementById('tableBody');
+    try {
+      // ดึงข้อมูลและเรียงลำดับตาม level จากน้อยไปมาก
+      const response = await fetch(`${SUPABASE_URL}/production_steps?select=*&order=level.asc`, {
+        method: 'GET',
+        headers: headers
+      });
+
+      if (!response.ok) throw new Error("โหลดข้อมูลล้มเหลว");
+      
+      const data = await response.json();
+      
+      if (data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center" style="color: #64748b;">ไม่พบข้อมูลขั้นตอนการผลิตในระบบ</td></tr>`;
+        return;
+      }
+
+      let html = '';
+      data.forEach(step => {
+        html += `
+          <tr>
+            <td>${step.id_step}</td>
+            <td style="font-weight: 500; color: #0f172a;">${step.step_name}</td>
+            <td class="text-center"><span style="background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 12px; font-weight: bold;">${step.level}</span></td>
+            <td>${step.foreman || '-'}</td>
+            <td class="text-center">
+              <button onclick="deleteStep(${step.id_step}, '${step.step_name}')" class="btn btn-danger">
+                <i class="fa-solid fa-trash"></i> ลบ
+              </button>
+            </td>
+          </tr>
+        `;
+      });
+      
+      tbody.innerHTML = html;
+
+    } catch (error) {
+      console.error(error);
+      tbody.innerHTML = `<tr><td colspan="5" class="text-center" style="color: red;">เกิดข้อผิดพลาดในการโหลดข้อมูล: ${error.message}</td></tr>`;
+    }
+  }
+
+  // ฟังก์ชันเพิ่มข้อมูลใหม่
+  async function addStep(event) {
+    event.preventDefault(); // ป้องกันหน้าเว็บรีเฟรช
+    
+    const btn = document.getElementById('submitBtn');
+    const stepName = document.getElementById('step_name').value.trim();
+    const level = document.getElementById('level').value.trim();
+    const foreman = document.getElementById('foreman').value.trim();
+
+    if (!stepName || !level || !foreman) {
+      alert("กรุณากรอกข้อมูลให้ครบถ้วน");
+      return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
+
+    const payload = {
+      step_name: stepName,
+      level: parseInt(level),
+      foreman: foreman
+    };
+
+    try {
+      const response = await fetch(`${SUPABASE_URL}/production_steps`, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.message || "บันทึกข้อมูลล้มเหลว");
+      }
+
+      // เคลียร์ฟอร์มและโหลดตารางใหม่
+      document.getElementById('stepForm').reset();
+      document.getElementById('step_name').focus();
+      loadSteps();
+      
+    } catch (error) {
+      console.error(error);
+      alert("ข้อผิดพลาด: " + error.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-save"></i> บันทึกข้อมูล';
+    }
+  }
+
+  // ฟังก์ชันลบข้อมูล
+  async function deleteStep(id, name) {
+    if (!confirm(`คำเตือน: คุณต้องการลบขั้นตอน "${name}" (ID: ${id}) ใช่หรือไม่?\nการลบขั้นตอนนี้อาจส่งผลกระทบต่อใบสั่งผลิตที่ผูกอยู่กับขั้นตอนนี้`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${SUPABASE_URL}/production_steps?id_step=eq.${id}`, {
+        method: 'DELETE',
+        headers: headers
+      });
+
+      if (!response.ok) throw new Error("ลบข้อมูลล้มเหลว");
+
+      // โหลดตารางใหม่หลังลบเสร็จ
+      loadSteps();
+
+    } catch (error) {
+      console.error(error);
+      alert("ข้อผิดพลาดในการลบข้อมูล: " + error.message);
+    }
+  }
+</script>
+
+</body>
+</html>
