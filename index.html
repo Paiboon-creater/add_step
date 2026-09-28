@@ -13,6 +13,8 @@
       --card-bg: #ffffff;
       --primary: #3b82f6;
       --primary-hover: #2563eb;
+      --warning: #f59e0b;
+      --warning-hover: #d97706;
       --danger: #ef4444;
       --danger-hover: #dc2626;
       --text-main: #1e293b;
@@ -66,6 +68,7 @@
       margin-bottom: 20px;
       border-left: 4px solid var(--primary);
       padding-left: 10px;
+      transition: all 0.3s;
     }
 
     /* Form Styles */
@@ -127,8 +130,13 @@
     .btn-primary { background: var(--primary); color: white; }
     .btn-primary:hover { background: var(--primary-hover); }
     
-    .btn-danger { background: var(--danger); color: white; padding: 6px 12px; font-size: 13px; }
+    .btn-warning { background: var(--warning); color: white; }
+    .btn-warning:hover { background: var(--warning-hover); }
+
+    .btn-danger { background: var(--danger); color: white; }
     .btn-danger:hover { background: var(--danger-hover); }
+
+    .btn-sm { padding: 6px 10px; font-size: 12px; }
 
     /* Table Styles */
     .table-responsive {
@@ -178,10 +186,10 @@
     </a>
   </div>
 
-  <!-- ฟอร์มเพิ่มข้อมูล -->
-  <div class="card">
-    <h2><i class="fa-solid fa-plus-circle"></i> เพิ่มขั้นตอนการผลิตใหม่</h2>
-    <form id="stepForm" onsubmit="addStep(event)">
+  <!-- ฟอร์มเพิ่ม/แก้ไขข้อมูล -->
+  <div class="card" id="formCard">
+    <h2 id="formTitle"><i class="fa-solid fa-plus-circle"></i> เพิ่มขั้นตอนการผลิตใหม่</h2>
+    <form id="stepForm" onsubmit="saveStep(event)">
       <div class="form-grid">
         <div class="form-group">
           <label for="step_name">ชื่อขั้นตอนการผลิต (step_name)</label>
@@ -196,7 +204,7 @@
           <input type="text" id="foreman" placeholder="เช่น วิไล, คุณแก้ว, MT..." required>
         </div>
       </div>
-      <div style="margin-top: 20px; text-align: right;">
+      <div style="margin-top: 20px; text-align: right;" id="formActions">
         <button type="submit" class="btn btn-primary" id="submitBtn">
           <i class="fa-solid fa-save"></i> บันทึกข้อมูล
         </button>
@@ -214,8 +222,8 @@
             <th width="10%">ID</th>
             <th width="35%">ชื่อขั้นตอน (Step Name)</th>
             <th width="15%" class="text-center">ลำดับ (Level)</th>
-            <th width="25%">หัวหน้างาน (Foreman)</th>
-            <th width="15%" class="text-center">จัดการ</th>
+            <th width="20%">หัวหน้างาน (Foreman)</th>
+            <th width="20%" class="text-center">จัดการ</th>
           </tr>
         </thead>
         <tbody id="tableBody">
@@ -239,6 +247,8 @@
     "Prefer": "return=representation"
   };
 
+  let currentEditId = null; // ตัวแปรเก็บ ID ที่กำลังแก้ไข
+
   // โหลดข้อมูลเมื่อเปิดหน้าเว็บ
   window.onload = function() {
     loadSteps();
@@ -248,7 +258,6 @@
   async function loadSteps() {
     const tbody = document.getElementById('tableBody');
     try {
-      // ดึงข้อมูลและเรียงลำดับตาม level จากน้อยไปมาก
       const response = await fetch(`${SUPABASE_URL}/production_steps?select=*&order=level.asc`, {
         method: 'GET',
         headers: headers
@@ -265,6 +274,10 @@
 
       let html = '';
       data.forEach(step => {
+        // ใช้ escape characters สำหรับส่ง string ไปในฟังก์ชัน
+        const safeName = (step.step_name || '').replace(/'/g, "\\'");
+        const safeForeman = (step.foreman || '').replace(/'/g, "\\'");
+
         html += `
           <tr>
             <td>${step.id_step}</td>
@@ -272,7 +285,10 @@
             <td class="text-center"><span style="background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 12px; font-weight: bold;">${step.level}</span></td>
             <td>${step.foreman || '-'}</td>
             <td class="text-center">
-              <button onclick="deleteStep(${step.id_step}, '${step.step_name}')" class="btn btn-danger">
+              <button onclick="prepareEdit(${step.id_step}, '${safeName}', ${step.level}, '${safeForeman}')" class="btn btn-warning btn-sm" style="margin-right: 5px;">
+                <i class="fa-solid fa-pen"></i> แก้ไข
+              </button>
+              <button onclick="deleteStep(${step.id_step}, '${safeName}')" class="btn btn-danger btn-sm">
                 <i class="fa-solid fa-trash"></i> ลบ
               </button>
             </td>
@@ -288,9 +304,71 @@
     }
   }
 
-  // ฟังก์ชันเพิ่มข้อมูลใหม่
-  async function addStep(event) {
-    event.preventDefault(); // ป้องกันหน้าเว็บรีเฟรช
+  // ฟังก์ชันเตรียมข้อมูลเพื่อแก้ไข (ตรวจรหัสผ่าน)
+  function prepareEdit(id, name, level, foreman) {
+    const password = prompt(`ต้องการแก้ไขขั้นตอน "${name}"\nกรุณาใส่รหัสผ่าน:`);
+    
+    // ตรวจสอบรหัสผ่าน
+    if (password !== "ๅ") {
+      if (password !== null) {
+        alert("❌ รหัสผ่านไม่ถูกต้อง");
+      }
+      return;
+    }
+
+    // เมื่อรหัสผ่านถูกต้อง นำข้อมูลเติมลงฟอร์ม
+    currentEditId = id;
+    document.getElementById('step_name').value = name;
+    document.getElementById('level').value = level;
+    document.getElementById('foreman').value = foreman;
+
+    // เปลี่ยนหน้าตาฟอร์มให้เป็นโหมดแก้ไข
+    const title = document.getElementById('formTitle');
+    title.innerHTML = `<i class="fa-solid fa-pen"></i> แก้ไขขั้นตอนการผลิต (ID: ${id})`;
+    title.style.borderLeftColor = "var(--warning)";
+    title.style.color = "var(--warning)";
+
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.innerHTML = '<i class="fa-solid fa-save"></i> อัปเดตข้อมูล';
+    submitBtn.className = 'btn btn-warning';
+
+    // เพิ่มปุ่มยกเลิก หากยังไม่มี
+    if (!document.getElementById('cancelBtn')) {
+      const cancelBtn = document.createElement('button');
+      cancelBtn.id = 'cancelBtn';
+      cancelBtn.type = 'button';
+      cancelBtn.className = 'btn btn-danger';
+      cancelBtn.style.marginLeft = '10px';
+      cancelBtn.innerHTML = '<i class="fa-solid fa-times"></i> ยกเลิก';
+      cancelBtn.onclick = cancelEditMode;
+      document.getElementById('formActions').appendChild(cancelBtn);
+    }
+
+    // เลื่อนหน้าจอขึ้นไปที่ฟอร์ม
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // ฟังก์ชันยกเลิกโหมดแก้ไข กลับเป็นโหมดเพิ่ม
+  function cancelEditMode() {
+    currentEditId = null;
+    document.getElementById('stepForm').reset();
+    
+    const title = document.getElementById('formTitle');
+    title.innerHTML = `<i class="fa-solid fa-plus-circle"></i> เพิ่มขั้นตอนการผลิตใหม่`;
+    title.style.borderLeftColor = "var(--primary)";
+    title.style.color = "var(--text-main)";
+
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.innerHTML = '<i class="fa-solid fa-save"></i> บันทึกข้อมูล';
+    submitBtn.className = 'btn btn-primary';
+
+    const cancelBtn = document.getElementById('cancelBtn');
+    if (cancelBtn) cancelBtn.remove();
+  }
+
+  // ฟังก์ชันบันทึกข้อมูล (รองรับทั้ง Add และ Update)
+  async function saveStep(event) {
+    event.preventDefault(); 
     
     const btn = document.getElementById('submitBtn');
     const stepName = document.getElementById('step_name').value.trim();
@@ -312,33 +390,54 @@
     };
 
     try {
-      const response = await fetch(`${SUPABASE_URL}/production_steps`, {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify(payload)
-      });
+      let response;
+      if (currentEditId === null) {
+        // Mode: Insert
+        response = await fetch(`${SUPABASE_URL}/production_steps`, {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify(payload)
+        });
+      } else {
+        // Mode: Update
+        response = await fetch(`${SUPABASE_URL}/production_steps?id_step=eq.${currentEditId}`, {
+          method: 'PATCH',
+          headers: headers,
+          body: JSON.stringify(payload)
+        });
+      }
 
       if (!response.ok) {
         const err = await response.json();
         throw new Error(err.message || "บันทึกข้อมูลล้มเหลว");
       }
 
-      // เคลียร์ฟอร์มและโหลดตารางใหม่
-      document.getElementById('stepForm').reset();
-      document.getElementById('step_name').focus();
+      // รีเซ็ตโหมดและโหลดตารางใหม่
+      cancelEditMode();
       loadSteps();
       
     } catch (error) {
       console.error(error);
       alert("ข้อผิดพลาด: " + error.message);
-    } finally {
+      
+      // คืนค่าปุ่มหาก error
       btn.disabled = false;
-      btn.innerHTML = '<i class="fa-solid fa-save"></i> บันทึกข้อมูล';
+      if (currentEditId) {
+        btn.innerHTML = '<i class="fa-solid fa-save"></i> อัปเดตข้อมูล';
+      } else {
+        btn.innerHTML = '<i class="fa-solid fa-save"></i> บันทึกข้อมูล';
+      }
     }
   }
 
   // ฟังก์ชันลบข้อมูล
   async function deleteStep(id, name) {
+    // ป้องกันการลบข้อมูลที่กำลังแก้ไข
+    if (currentEditId === id) {
+      alert("ไม่สามารถลบข้อมูลที่กำลังแก้ไขอยู่ได้ กรุณายกเลิกการแก้ไขก่อน");
+      return;
+    }
+
     if (!confirm(`คำเตือน: คุณต้องการลบขั้นตอน "${name}" (ID: ${id}) ใช่หรือไม่?\nการลบขั้นตอนนี้อาจส่งผลกระทบต่อใบสั่งผลิตที่ผูกอยู่กับขั้นตอนนี้`)) {
       return;
     }
@@ -351,7 +450,6 @@
 
       if (!response.ok) throw new Error("ลบข้อมูลล้มเหลว");
 
-      // โหลดตารางใหม่หลังลบเสร็จ
       loadSteps();
 
     } catch (error) {
